@@ -1,0 +1,12 @@
+name: napari-dea
+display_name: napari-dea
+
+contributions:
+  commands:
+  - id: napari-dea.TwoRegionDEWidget
+    title: Two-Region DE
+    python_name: napari_dea._widget:TwoRegionDEWidget
+
+  widgets:
+  - command: napari-dea.TwoRegionDEWidget
+    display_name: Two-Region DE
