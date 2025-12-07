@@ -1,9 +1,13 @@
 # napari_dea/_widget.py
+"""
+Yasas Wijesekara, 205
+University Medicine Greifswald
+"""
 
 from typing import Optional, List
 import numpy as np
 import pandas as pd
-
+from napari.utils.notifications import show_info, show_error
 from qtpy.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QComboBox, QPushButton,
     QLabel, QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit
@@ -65,7 +69,7 @@ class TwoRegionDEWidget(QWidget):
         self.regionB_combo = QComboBox()
         layout.addWidget(self.regionB_combo)
 
-        # --- Optional: name of points layer to color ---
+        # --- Optional: name of points layer or shapes layer to color ---
         layout.addWidget(QLabel("Points layer to color (optional):"))
         self.points_layer_combo = QComboBox()
         layout.addWidget(self.points_layer_combo)
@@ -80,7 +84,7 @@ class TwoRegionDEWidget(QWidget):
         hl.addWidget(QLabel("Gene to visualize:"))
         self.gene_line = QLineEdit()
         hl.addWidget(self.gene_line)
-        self.show_gene_button = QPushButton("Color points by gene")
+        self.show_gene_button = QPushButton("Color points/shapes by gene")
         hl.addWidget(self.show_gene_button)
         layout.addLayout(hl)
         self.show_gene_button.clicked.connect(self._on_show_gene_clicked)
@@ -149,7 +153,7 @@ class TwoRegionDEWidget(QWidget):
         self.regionA_combo.addItems(shapes_names)
         self.regionB_combo.addItems(shapes_names)
         self.points_layer_combo.addItem("")  # optional blank
-        self.points_layer_combo.addItems(points_names)
+        self.points_layer_combo.addItems(points_names + shapes_names)
 
     # ------------------------------------------------------------------
     # Helpers for polygon_query
@@ -208,7 +212,7 @@ class TwoRegionDEWidget(QWidget):
                 clip=False,
             )
         except Exception as e:
-            print(f"polygon_query failed: {e}")
+            show_error(f"polygon_query failed: {e}")
             return np.array([], dtype=int)
 
         # No data found
@@ -247,6 +251,7 @@ class TwoRegionDEWidget(QWidget):
         # Repopulate dropdowns from current viewer state
         self._populate_tables()
         self._populate_shape_layers()
+        
 
     def showEvent(self, event):
         """Called when the dock widget is shown (toggled on)."""
@@ -254,6 +259,7 @@ class TwoRegionDEWidget(QWidget):
 
         # Napari toggles visibility instead of destroying the widget.
         # Each time it's shown again, reset its state.
+        show_info("resetting DEWidget state")
         self.reset_state()
 
     # ------------------------------------------------------------------
@@ -266,9 +272,10 @@ class TwoRegionDEWidget(QWidget):
         return layer
 
     def _on_run_clicked(self):
+        show_info("Please wait ...")
         sdata = self._get_sdata()
         if sdata is None:
-            print("No SpatialData object found.")
+            show_error("No SpatialData object found.")
             return
 
         table_name = self.table_combo.currentText()
@@ -276,7 +283,7 @@ class TwoRegionDEWidget(QWidget):
         regionB_layer = self.regionB_combo.currentText()
 
         if not table_name or not regionA_layer or not regionB_layer:
-            print("Please select table and both region layers.")
+            show_error("Please select table and both region layers.")
             return
 
         # --- get the selected layers ---
@@ -288,7 +295,7 @@ class TwoRegionDEWidget(QWidget):
         idxB = self._indices_from_polygon_query(layer=roiB, table_name=table_name)
 
         if len(idxA) == 0 or len(idxB) == 0:
-            print("One of the regions contains no cells/spots.")
+            show_error("One of the regions contains no cells/spots.")
             return
 
         # ------------------------------------------------------------------
@@ -372,13 +379,13 @@ class TwoRegionDEWidget(QWidget):
             return
 
         if not hasattr(self, "_full_adata") or self._full_adata is None:
-            print("Run DE first (or provide an AnnData context).")
+            show_error("Run DE first (or provide an AnnData context).")
             return
 
         full_adata = self._full_adata
 
         if gene not in full_adata.var_names:
-            print(f"Gene {gene} not in var_names.")
+            show_error(f"Gene {gene} not in var_names.")
             return
 
         # Get full expression vector (one value per obs)
@@ -402,23 +409,23 @@ class TwoRegionDEWidget(QWidget):
         expr = np.asarray(expr, dtype=float)
 
         if not np.any(np.isfinite(expr)):
-            print("Expression contains no finite values.")
+            show_error("Expression contains no finite values.")
             return
 
         points_layer_name = self.points_layer_combo.currentText()
         if not points_layer_name:
-            print("No points layer selected to color.")
+            show_error("No points layer selected to color.")
             return
 
         pl = self.viewer.layers[points_layer_name]
-        if not isinstance(pl, Points):
-            print("Selected layer is not a Points layer.")
+        if not isinstance(pl, Points) and not isinstance(pl, Shapes):
+            show_error("Selected layer is not a Points/Shapes layer.")
             return
 
         # Length check
-        n_points = pl.data.shape[0]
+        n_points = len(pl.data)
         if len(expr) != n_points:
-            print(
+            show_error(
                 f"Length mismatch: {len(expr)} expression values vs "
                 f"{n_points} points in layer '{points_layer_name}'. "
                 "Coloring aborted."
@@ -439,7 +446,7 @@ class TwoRegionDEWidget(QWidget):
         pl.face_color = rgba
         pl.properties["expr"] = expr
 
-        print("Colored points using explicit RGBA colormap.")
+        show_info("Colored points using explicit RGBA colormap.")
 
 
 def two_region_de_widget(viewer: Viewer) -> TwoRegionDEWidget:
