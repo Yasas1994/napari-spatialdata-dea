@@ -4,9 +4,9 @@ display_name: napari-dea
 contributions:
   commands:
   - id: napari-dea.TwoRegionDEWidget
-    title: Two-Region DE
+    title: Differential Expression Analysis
     python_name: napari_dea._widget:TwoRegionDEWidget
 
   widgets:
   - command: napari-dea.TwoRegionDEWidget
-    display_name: Two-Region DE
+    display_name: Differential Expression Analysis

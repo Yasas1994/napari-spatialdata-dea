@@ -18,5 +18,8 @@ where = ["src"]
 [tool.setuptools.package-data]
 "*" = ["*.yaml"]
 
+[project.optional-dependencies]
+deseq2 = ["pydeseq2>=0.4.0"]
+
 [project.entry-points."napari.manifest"]
 napari-hello = "napari_dea:napari.yaml"
